@@ -2,15 +2,6 @@
 
 #[macro_use] extern crate rocket;
 
-// TODO fix this
-#[cfg(feature = "serde_derive")] 
-#[allow(unused_imports)] 
-#[macro_use] 
-extern crate serde_derive; 
-#[cfg(feature = "serde_derive")] 
-#[doc(hidden)] 
-pub use serde_derive::*; 
-
 use std::env;
 
 use rocket::request::Form;
