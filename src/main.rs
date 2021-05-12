@@ -26,12 +26,12 @@ fn index() -> Html<&'static str> {
 fn new(membership: Form<Membership>) -> Redirect {
     let mut api = PromoteAPI::new();
 
-    let auth = api.create_auth();
+    api.login();
 
-    api.create_user(membership.email.clone(), membership.first_name.clone(), membership.last_name.clone());
+    api.create_user(&membership.email, &membership.first_name, &membership.last_name);
 
-    api.create_membership(membership.email.clone());
-    let invitations = api.create_invitation(membership.email.clone());
+    api.create_membership(&membership.email);
+    let invitations = api.create_invitation(&membership.email);
     Redirect::to(invitations.result[0].url.clone())
 }
 
@@ -60,17 +60,21 @@ struct Invitation {
 }
 
 struct PromoteAPI {
+    client: reqwest::blocking::Client,
+    server: String,
     token: PromoteToken,
 }
 
 impl PromoteAPI {
     pub fn new() -> PromoteAPI {
         PromoteAPI {
+            client: reqwest::blocking::Client::new(),
+            server: env::var("PROMOTE_SERVER").unwrap(),
             token: PromoteToken { access_token: "".to_string() },
         }
     }
 
-    fn create_auth(&mut self) {
+    fn login(&mut self) {
         let username = env::var("API_USERNAME").unwrap();
         let password = env::var("API_PASSWORD").unwrap();
         let client_id = env::var("API_CLIENT_ID").unwrap();
@@ -91,49 +95,36 @@ impl PromoteAPI {
         self.token = res.unwrap();
     }
 
-    pub fn create_user(&self, email: String, first_name: String, last_name: String) {
-        let server = env::var("PROMOTE_SERVER").unwrap();
-        let mut data = HashMap::new();
-        data.insert("email", email);
-        data.insert("first_name", first_name);
-        data.insert("last_name", last_name);
+    pub fn create_user(&self, email: &str, first_name: &str, last_name: &str) {
+        let data = [("email", email), ("first_name", first_name), ("last_name", last_name)];
 
-        let client = reqwest::blocking::Client::new();
-        let res = client.post(format!("{}/api/users", server))
-            .json(&data)
-            .header("Accept-Version", "v3")
-            .header("Authorization", format!("Bearer {}", self.token.access_token))
-            .send();
+        self.api_post("/api/users", &data);
     }
 
-    pub fn create_membership(&self, email: String) {
-        let server = env::var("PROMOTE_SERVER").unwrap();
+    pub fn create_membership(&self, email: &str) {
         let program_uuid = env::var("PROMOTE_PROGRAM_UUID").unwrap();
-        let data = [("user", email), ("roles[]", "learner".to_string())];
+        let data = [("user", email), ("roles[]", "learner")];
 
-        let client = reqwest::blocking::Client::new();
-        let res = client.post(format!("{}/api/programs/{}/members", server, program_uuid))
-            .form(&data)
-            .header("Accept-Version", "v3")
-            .header("Authorization", format!("Bearer {}", self.token.access_token))
-            .send();
-        println!("{:?}", res);
+        self.api_post(&format!("/api/programs/{}/members", program_uuid), &data);
     }
 
-    pub fn create_invitation(&self, email: String) -> Invitations {
-        let server = env::var("PROMOTE_SERVER").unwrap();
+    pub fn create_invitation(&self, email: &str) -> Invitations {
         let program_uuid = env::var("PROMOTE_PROGRAM_UUID").unwrap();
         let data = [("users[]", email)];
 
-        let client = reqwest::blocking::Client::new();
-        let res = client.post(format!("{}/api/programs/{}/invitations", server, program_uuid))
+        self.api_post(
+            &format!("/api/programs/{}/invitations", program_uuid),
+            &data
+        ).json::<Invitations>().unwrap()
+    }
+
+    fn api_post(&self, path: &str, data: &[(&str, &str)]) -> reqwest::blocking::Response {
+        self.client.post(format!("{}{}", self.server, path))
             .form(&data)
             .header("Accept-Version", "v3")
             .header("Authorization", format!("Bearer {}", self.token.access_token))
             .send()
             .unwrap()
-            .json::<Invitations>();
-        res.unwrap()
     }
 }
 
