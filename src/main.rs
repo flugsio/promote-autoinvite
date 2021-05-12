@@ -28,7 +28,7 @@ struct Membership {
 
 #[get("/")]
 fn index() -> Html<&'static str> {
-        Html("<p>Promote self registration</p><form method=post action=/membership>Email:<input type=text name=email><br>First name:<input type=text name=first_name><br>Last name:<input type=text name=last_name><br><input type=submit></form>")
+        Html("<a href='https://github.com/flugsio/promote-autoinvite/blob/master/src/main.rs'>Check the source code here</a><h3>Promote self registration</h3><form method=post action=/membership>Email: <input type=text name=email><br>First name: <input type=text name=first_name><br>Last name: <input type=text name=last_name><br><input type=submit></form>")
 }
 
 #[post("/membership", data = "<membership>")]
