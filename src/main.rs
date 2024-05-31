@@ -75,24 +75,23 @@ impl PromoteAPI {
     }
 
     fn login(&mut self) {
-        let username = env::var("API_USERNAME").unwrap();
-        let password = env::var("API_PASSWORD").unwrap();
         let client_id = env::var("API_CLIENT_ID").unwrap();
-        let auth_server = env::var("AUTH_SERVER").unwrap();
+        let client_secret = env::var("API_CLIENT_SECRET").unwrap();
+        let auth_server = env::var("PROMOTE_SERVER").unwrap();
 
         let mut data = HashMap::new();
-        data.insert("grant_type", "password");
-        data.insert("username", &username);
-        data.insert("password", &password);
+        data.insert("grant_type", "client_credentials");
         data.insert("client_id", &client_id);
+        data.insert("client_secret", &client_secret);
+        data.insert("scope", "users:write members:write invitations:write");
 
         let client = reqwest::blocking::Client::new();
         let res = client.post(format!("{}/oauth/token", auth_server))
-            .json(&data)
+            .form(&data)
             .send()
-            .unwrap()
-            .json::<PromoteToken>();
-        self.token = res.unwrap();
+            .unwrap();
+        //println!("{:?}", res);
+        self.token = res.json::<PromoteToken>().unwrap();
     }
 
     pub fn create_user(&self, email: &str, first_name: &str, last_name: &str) {
